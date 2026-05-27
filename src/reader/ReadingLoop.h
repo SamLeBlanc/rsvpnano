@@ -11,6 +11,7 @@ class ReadingLoop {
     uint16_t longWordDelayMs = 200;
     uint16_t complexWordDelayMs = 200;
     uint16_t punctuationDelayMs = 200;
+    uint16_t capitalizedWordDelayMs = 0;
     uint8_t longWordScalePercent = 100;
     uint8_t complexWordScalePercent = 100;
     uint8_t punctuationScalePercent = 100;

@@ -174,7 +174,8 @@ constexpr size_t kSettingsPacingWpmIndex = 3;
 constexpr size_t kSettingsPacingLongWordsIndex = 4;
 constexpr size_t kSettingsPacingComplexityIndex = 5;
 constexpr size_t kSettingsPacingPunctuationIndex = 6;
-constexpr size_t kSettingsPacingResetIndex = 7;
+constexpr size_t kSettingsPacingCapitalizedIndex = 7;
+constexpr size_t kSettingsPacingResetIndex = 8;
 constexpr size_t kWifiSettingsNetworkIndex = 1;
 constexpr size_t kWifiSettingsChooseIndex = 2;
 constexpr size_t kWifiSettingsAutoUpdateIndex = 3;
@@ -195,6 +196,7 @@ constexpr const char *kPrefWpm = "wpm";
 constexpr const char *kPrefBrightness = "bright";
 constexpr const char *kPrefDarkMode = "dark";
 constexpr const char *kPrefNightMode = "night";
+constexpr const char *kPrefBlueMode = "blue";
 constexpr const char *kPrefUiLanguage = "ui_lang";
 constexpr const char *kPrefReaderMode = "read_mode";
 constexpr const char *kPrefHandedness = "handed";
@@ -214,6 +216,7 @@ constexpr const char *kPrefLegacyPacingPunctuation = "pace_pnc";
 constexpr const char *kPrefPacingLongMs = "pace_lms";
 constexpr const char *kPrefPacingComplexMs = "pace_cms";
 constexpr const char *kPrefPacingPunctuationMs = "pace_pms";
+constexpr const char *kPrefPacingCapitalizedMs = "pace_cap";
 constexpr const char *kPrefPauseMode = "pause_md";
 constexpr const char *kPrefAccurateTime = "time_est_a";
 constexpr const char *kPrefTypographyTracking = "type_trk";
@@ -692,6 +695,10 @@ void App::begin() {
       loadPacingDelayMs(preferences_, kPrefPacingComplexMs, kPrefLegacyPacingComplex);
   pacingPunctuationDelayMs_ =
       loadPacingDelayMs(preferences_, kPrefPacingPunctuationMs, kPrefLegacyPacingPunctuation);
+  pacingCapitalizedWordDelayMs_ =
+      static_cast<uint16_t>(clampIntSetting(
+          preferences_.getUShort(kPrefPacingCapitalizedMs, pacingCapitalizedWordDelayMs_),
+          kPacingDelayMinMs, kPacingDelayMaxMs));
   accurateTimeEstimateEnabled_ = true;
   typographyConfig_ = defaultTypographyConfig();
   typographyConfig_.typeface = readerTypefaceFromSetting(
@@ -712,6 +719,7 @@ void App::begin() {
       kTypographyGuideGapMin, kTypographyGuideGapMax));
   darkMode_ = preferences_.getBool(kPrefDarkMode, darkMode_);
   nightMode_ = preferences_.getBool(kPrefNightMode, nightMode_);
+  blueMode_ = preferences_.getBool(kPrefBlueMode, blueMode_);
   applyHandednessSettings(0, false);
   applyDisplayPreferences(0, false);
   applyTypographySettings(0, false);
@@ -1235,6 +1243,7 @@ uint8_t App::currentBrightnessPercent() const {
 void App::applyDisplayPreferences(uint32_t nowMs, bool rerender) {
   display_.setDarkMode(darkMode_);
   display_.setNightMode(nightMode_);
+  display_.setBlueMode(blueMode_);
   display_.setBrightnessPercent(currentBrightnessPercent());
 
   if (!rerender) {
@@ -1363,6 +1372,10 @@ void App::reloadRuntimePreferences(uint32_t nowMs, bool rerender) {
       loadPacingDelayMs(preferences_, kPrefPacingComplexMs, kPrefLegacyPacingComplex);
   pacingPunctuationDelayMs_ =
       loadPacingDelayMs(preferences_, kPrefPacingPunctuationMs, kPrefLegacyPacingPunctuation);
+  pacingCapitalizedWordDelayMs_ =
+      static_cast<uint16_t>(clampIntSetting(
+          preferences_.getUShort(kPrefPacingCapitalizedMs, pacingCapitalizedWordDelayMs_),
+          kPacingDelayMinMs, kPacingDelayMaxMs));
   accurateTimeEstimateEnabled_ = true;
 
   typographyConfig_ = defaultTypographyConfig();
@@ -1384,6 +1397,7 @@ void App::reloadRuntimePreferences(uint32_t nowMs, bool rerender) {
       kTypographyGuideGapMin, kTypographyGuideGapMax));
   darkMode_ = preferences_.getBool(kPrefDarkMode, darkMode_);
   nightMode_ = preferences_.getBool(kPrefNightMode, nightMode_);
+  blueMode_ = preferences_.getBool(kPrefBlueMode, blueMode_);
 
   reader_.setWpm(preferences_.getUShort(kPrefWpm, reader_.wpm()));
   applyReaderUiOrientation();
@@ -1433,17 +1447,28 @@ void App::cycleBrightness() {
 
 void App::cycleThemeMode(uint32_t nowMs) {
   if (nightMode_) {
+    // Night -> Dark
     nightMode_ = false;
     darkMode_ = true;
-  } else if (darkMode_) {
+    blueMode_ = false;
+  } else if (blueMode_) {
+    // Blue -> Light
     darkMode_ = false;
-  } else {
+    blueMode_ = false;
+  } else if (darkMode_) {
+    // Dark -> Blue
     darkMode_ = true;
+    blueMode_ = true;
+  } else {
+    // Light -> Night
+    darkMode_ = true;
+    blueMode_ = false;
     nightMode_ = true;
   }
 
   preferences_.putBool(kPrefDarkMode, darkMode_);
   preferences_.putBool(kPrefNightMode, nightMode_);
+  preferences_.putBool(kPrefBlueMode, blueMode_);
   Serial.printf("[display] theme=%s\n", themeModeLabel().c_str());
   applyDisplayPreferences(nowMs);
 }
@@ -2817,13 +2842,21 @@ void App::selectSettingsItem(uint32_t nowMs) {
       preferences_.putUShort(kPrefPacingPunctuationMs, pacingPunctuationDelayMs_);
       pacingConfigChanged = true;
       break;
+    case kSettingsPacingCapitalizedIndex:
+      pacingCapitalizedWordDelayMs_ = static_cast<uint16_t>(nextCyclicSetting(
+          pacingCapitalizedWordDelayMs_, kPacingDelayMinMs, kPacingDelayMaxMs, kPacingDelayStepMs));
+      preferences_.putUShort(kPrefPacingCapitalizedMs, pacingCapitalizedWordDelayMs_);
+      pacingConfigChanged = true;
+      break;
     case kSettingsPacingResetIndex:
       pacingLongWordDelayMs_ = kDefaultPacingDelayMs;
       pacingComplexWordDelayMs_ = kDefaultPacingDelayMs;
       pacingPunctuationDelayMs_ = kDefaultPacingDelayMs;
+      pacingCapitalizedWordDelayMs_ = 0;
       preferences_.putUShort(kPrefPacingLongMs, pacingLongWordDelayMs_);
       preferences_.putUShort(kPrefPacingComplexMs, pacingComplexWordDelayMs_);
       preferences_.putUShort(kPrefPacingPunctuationMs, pacingPunctuationDelayMs_);
+      preferences_.putUShort(kPrefPacingCapitalizedMs, pacingCapitalizedWordDelayMs_);
       pacingConfigChanged = true;
       break;
     default:
@@ -3386,6 +3419,8 @@ void App::rebuildSettingsMenuItems() {
                                  pacingDelayLabel(pacingComplexWordDelayMs_));
     settingsMenuItems_.push_back(uiText(UiText::Punctuation) + ": " +
                                  pacingDelayLabel(pacingPunctuationDelayMs_));
+    settingsMenuItems_.push_back(uiText(UiText::CapitalizedWords) + ": " +
+                                 pacingDelayLabel(pacingCapitalizedWordDelayMs_));
     settingsMenuItems_.push_back(uiText(UiText::ResetPacing));
   } else if (menuScreen_ == MenuScreen::WifiSettings) {
     settingsMenuItems_.push_back(uiText(UiText::Back));
@@ -3406,12 +3441,14 @@ void App::applyPacingSettings() {
   pacingConfig.longWordDelayMs = pacingLongWordDelayMs_;
   pacingConfig.complexWordDelayMs = pacingComplexWordDelayMs_;
   pacingConfig.punctuationDelayMs = pacingPunctuationDelayMs_;
+  pacingConfig.capitalizedWordDelayMs = pacingCapitalizedWordDelayMs_;
   reader_.setPacingConfig(pacingConfig);
 
-  Serial.printf("[settings] pacing long=%u ms complexity=%u ms punctuation=%u ms\n",
+  Serial.printf("[settings] pacing long=%u ms complexity=%u ms punctuation=%u ms capitalized=%u ms\n",
                 static_cast<unsigned int>(pacingLongWordDelayMs_),
                 static_cast<unsigned int>(pacingComplexWordDelayMs_),
-                static_cast<unsigned int>(pacingPunctuationDelayMs_));
+                static_cast<unsigned int>(pacingPunctuationDelayMs_),
+                static_cast<unsigned int>(pacingCapitalizedWordDelayMs_));
   if (state_ == AppState::Menu && menuScreen_ == MenuScreen::SettingsPacing) {
     pacingCacheDirty_ = true;
   } else {
@@ -3690,6 +3727,9 @@ String App::uiText(UiText key) const { return Localization::text(uiLanguage_, ke
 String App::themeModeLabel() const {
   if (nightMode_) {
     return uiText(UiText::Night);
+  }
+  if (blueMode_) {
+    return uiText(UiText::Blue);
   }
   return darkMode_ ? uiText(UiText::Dark) : uiText(UiText::Light);
 }

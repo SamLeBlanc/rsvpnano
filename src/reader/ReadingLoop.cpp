@@ -117,6 +117,7 @@ constexpr uint8_t kTechnicalConnectorPercent = 8;
 constexpr uint8_t kSyllableBonusAfterCount = 2;
 constexpr uint8_t kSyllableBonusPercentPerGroup = 10;
 constexpr uint8_t kSyllableBonusMaxPercent = 50;
+constexpr uint8_t kCapitalizedWordBonusPercent = 50;
 constexpr uint8_t kAllCapsComplexityPercent = 14;
 constexpr uint8_t kMixedTokenComplexityPercent = 22;
 constexpr uint8_t kNumericTokenComplexityPercent = 10;
@@ -531,8 +532,39 @@ uint16_t punctuationPausePercentForWord(const String &word, bool nextWordStartsL
   }
 }
 
+// Returns kCapitalizedWordBonusPercent if the word starts with an uppercase letter
+// but is not fully ALL CAPS (which is already handled by complexity). Returns 0
+// for sentence-initial words so normal capitalization does not trigger the bonus.
+uint16_t capitalizedBonusPercentForWord(const String &word, bool isSentenceStart) {
+  if (isSentenceStart) {
+    return 0;
+  }
+  const int letterCount = letterCharacterCount(word);
+  if (letterCount == 0) {
+    return 0;
+  }
+  // Must start with an uppercase letter
+  bool startsUpper = false;
+  for (size_t i = 0; i < word.length(); ++i) {
+    if (isLetterCharacter(word[i])) {
+      startsUpper = isUppercaseLetter(word[i]);
+      break;
+    }
+  }
+  if (!startsUpper) {
+    return 0;
+  }
+  // Exclude fully ALL CAPS words (already covered by complexity)
+  const int uppercaseCount = uppercaseLetterCount(word);
+  if (uppercaseCount == letterCount) {
+    return 0;
+  }
+  return kCapitalizedWordBonusPercent;
+}
+
 uint32_t pacingBonusMsForWord(const String &word, bool nextWordStartsLowercase,
-                              const ReadingLoop::PacingConfig &config) {
+                              const ReadingLoop::PacingConfig &config,
+                              bool isSentenceStart = false) {
   if (word.isEmpty()) {
     return 0;
   }
@@ -548,15 +580,17 @@ uint32_t pacingBonusMsForWord(const String &word, bool nextWordStartsLowercase,
       scaledDelayMs(scaledPercent(punctuationPausePercentForWord(word, nextWordStartsLowercase),
                                   config.punctuationScalePercent),
                     config.punctuationDelayMs);
+  totalBonusMs += scaledDelayMs(capitalizedBonusPercentForWord(word, isSentenceStart),
+                                config.capitalizedWordDelayMs);
   return totalBonusMs;
 }
 
 uint32_t durationForWord(const String &word, bool nextWordStartsLowercase, uint32_t baseIntervalMs,
-                         const ReadingLoop::PacingConfig &config) {
+                         const ReadingLoop::PacingConfig &config, bool isSentenceStart = false) {
   if (baseIntervalMs == 0) {
     return 0;
   }
-  return baseIntervalMs + pacingBonusMsForWord(word, nextWordStartsLowercase, config);
+  return baseIntervalMs + pacingBonusMsForWord(word, nextWordStartsLowercase, config, isSentenceStart);
 }
 
 }  // namespace
@@ -630,7 +664,10 @@ uint32_t ReadingLoop::currentWordDurationMs() const {
     nextWordStartsLowercase = startsWithLowercaseLetter(String(kDemoWords[nextIndex]));
   }
 
-  return durationForWord(currentWord_, nextWordStartsLowercase, wordIntervalMs(), pacingConfig_);
+  const bool isSentenceStart =
+      currentIndex_ == 0 || wordEndsSentenceAt(currentIndex_ - 1);
+  return durationForWord(currentWord_, nextWordStartsLowercase, wordIntervalMs(), pacingConfig_,
+                         isSentenceStart);
 }
 
 uint32_t ReadingLoop::wordPacingBonusMsAt(size_t index) const {
@@ -641,7 +678,8 @@ uint32_t ReadingLoop::wordPacingBonusMsAt(size_t index) const {
 
   const String word = wordAt(index);
   const bool nextLowercase = nextWordStartsLowercaseAt(index);
-  return pacingBonusMsForWord(word, nextLowercase, pacingConfig_);
+  const bool isSentenceStart = index == 0 || wordEndsSentenceAt(index - 1);
+  return pacingBonusMsForWord(word, nextLowercase, pacingConfig_, isSentenceStart);
 }
 
 uint32_t ReadingLoop::elapsedInCurrentWordMs(uint32_t nowMs) const {
@@ -765,6 +803,7 @@ void ReadingLoop::setPacingConfig(const PacingConfig &config) {
   pacingConfig_.longWordDelayMs = clampPacingDelayMs(config.longWordDelayMs);
   pacingConfig_.complexWordDelayMs = clampPacingDelayMs(config.complexWordDelayMs);
   pacingConfig_.punctuationDelayMs = clampPacingDelayMs(config.punctuationDelayMs);
+  pacingConfig_.capitalizedWordDelayMs = clampPacingDelayMs(config.capitalizedWordDelayMs);
   pacingConfig_.longWordScalePercent = clampScalePercent(config.longWordScalePercent);
   pacingConfig_.complexWordScalePercent = clampScalePercent(config.complexWordScalePercent);
   pacingConfig_.punctuationScalePercent = clampScalePercent(config.punctuationScalePercent);

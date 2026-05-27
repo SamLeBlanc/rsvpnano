@@ -31,6 +31,7 @@ constexpr uint16_t kPureWhite = 0xFFFF;
 constexpr uint16_t kDarkWordColor = 0xFFFF;
 constexpr uint16_t kLightWordColor = 0x0000;
 constexpr uint16_t kFocusLetterColor = 0xF800;
+constexpr uint16_t kBlueFocusColor = 0x001F;
 constexpr uint16_t kNightWordColor = 0xFCE0;
 constexpr uint16_t kNightFocusColor = 0xFA80;
 constexpr uint16_t kDarkMenuDimColor = 0x8410;
@@ -902,6 +903,16 @@ void DisplayManager::setNightMode(bool nightMode) {
   lastRenderKey_ = "";
 }
 
+void DisplayManager::setBlueMode(bool blueMode) {
+  if (blueMode_ == blueMode) {
+    return;
+  }
+
+  blueMode_ = blueMode;
+  tickerPlaybackFrameActive_ = false;
+  lastRenderKey_ = "";
+}
+
 void DisplayManager::setUiOrientation(BoardConfig::UiOrientation orientation) {
   if (uiOrientation_ == orientation) {
     return;
@@ -947,6 +958,7 @@ DisplayManager::TypographyConfig DisplayManager::typographyConfig() const {
 bool DisplayManager::darkMode() const { return darkMode_; }
 
 bool DisplayManager::nightMode() const { return nightMode_; }
+bool DisplayManager::blueMode() const { return blueMode_; }
 
 bool DisplayManager::begin() {
   ESP_LOGI(kDisplayTag, "Begin");
@@ -1079,6 +1091,9 @@ uint16_t DisplayManager::focusColor() const {
   if (nightMode_) {
     return kNightFocusColor;
   }
+  if (blueMode_) {
+    return kBlueFocusColor;
+  }
   return kFocusLetterColor;
 }
 
@@ -1097,7 +1112,7 @@ uint16_t DisplayManager::footerColor() const {
 }
 
 uint16_t DisplayManager::selectedBarColor() const {
-  return nightMode_ ? focusColor() : kFocusLetterColor;
+  return focusColor();
 }
 
 uint16_t DisplayManager::focusTimerBreakColor() const {
@@ -1888,7 +1903,7 @@ void DisplayManager::renderRsvpWordWithWpm(const String &word, uint16_t wpm,
       "rsvp_wpm|" + word + "|" + wpmText + "|" + chapterLabel + "|" +
       String(progressPercent) + "|" + String(showFooter ? 1 : 0) + "|f:" + footerStatusLabel +
       "|b:" + batteryLabel_ + "|rc:" + readerChromeKey(chrome) + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0);
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0);
   if (!initialized_ || renderKey == lastRenderKey_) {
     return;
   }
@@ -2048,7 +2063,7 @@ void DisplayManager::renderWordTickerView(const std::vector<ContextWord> &words,
   String renderKey =
       "ticker|" + String(fontSizeLevel) + "|i:" + String(currentWordIndex) + "|m:" +
       String(motionPermille) + "|f:" + String(showFooter ? 1 : 0) + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|wc:" +
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0) + "|wc:" +
       String(words.size()) + "|rc:" + readerChromeKey(chrome);
   if (!canUseBandOnly) {
     renderKey += "|c:";
@@ -2255,7 +2270,7 @@ void DisplayManager::renderTypographyPreview(const String &beforeText, const Str
       String(static_cast<unsigned int>(config.anchorPercent)) + "|w:" +
       String(static_cast<unsigned int>(config.guideHalfWidth)) + "|g:" +
       String(static_cast<unsigned int>(config.guideGap)) + "|b:" + batteryLabel_ + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0);
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0);
   if (!initialized_ || renderKey == lastRenderKey_) {
     return;
   }
@@ -2355,7 +2370,7 @@ void DisplayManager::renderPhantomRsvpWordWithWpm(const String &beforeText, cons
       String(fontSizeLevel) + "|" + wpmText + "|" + chapterLabel + "|" +
       String(progressPercent) + "|" + String(showFooter ? 1 : 0) + "|f:" + footerStatusLabel +
       "|b:" + batteryLabel_ + "|rc:" + readerChromeKey(chrome) + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0);
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0);
   if (!initialized_ || renderKey == lastRenderKey_) {
     return;
   }
@@ -2590,7 +2605,7 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
       String(currentWordIndex) + "|" + String(words.size()) + "|" + String(scrollOffset) +
       "|" + chapterLabel + "|" + String(progressPercent) + "|o:" + overlayText + "|f:" +
       footerStatusLabel + "|b:" + batteryLabel_ + "|rc:" + readerChromeKey(chrome) + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0);
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0);
   if (!initialized_ || renderKey == lastRenderKey_) {
     return;
   }
@@ -2613,7 +2628,7 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
          ++wordIndex) {
       const ContextWord &word = words[wordIndex];
       const uint16_t color =
-          (word.current && currentFocusHighlightEnabled()) ? focusColor() : wordColor();
+          (word.current && currentFocusHighlightEnabled()) ? focusColor() : dimColor();
       const String visibleWord =
           fitSerifText(word.text, virtualWidth - x - kScrollMarginX, kScrollSerifDivisor);
       drawSerifTextAt(visibleWord, x, lineY, color, kScrollSerifDivisor);

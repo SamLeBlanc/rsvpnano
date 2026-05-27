@@ -30,10 +30,12 @@ enum class UiText : uint8_t {
   LongWords,
   Complexity,
   Punctuation,
+  CapitalizedWords,
   ResetPacing,
   Night,
   Dark,
   Light,
+  Blue,
   On,
   Off,
   FontSize,
@@ -142,6 +144,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Complejidad";
         case UiText::Punctuation:
           return "Puntuacion";
+        case UiText::CapitalizedWords:
+          return "Mayusculas";
         case UiText::ResetPacing:
           return "Restablecer ritmo";
         case UiText::Night:
@@ -150,6 +154,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Oscuro";
         case UiText::Light:
           return "Claro";
+        case UiText::Blue:
+          return "Azul";
         case UiText::On:
           return "Si";
         case UiText::Off:
@@ -258,6 +264,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Complexite";
         case UiText::Punctuation:
           return "Ponctuation";
+        case UiText::CapitalizedWords:
+          return "Majuscules";
         case UiText::ResetPacing:
           return "Reinit. rythme";
         case UiText::Night:
@@ -266,6 +274,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Sombre";
         case UiText::Light:
           return "Clair";
+        case UiText::Blue:
+          return "Bleu";
         case UiText::On:
           return "Oui";
         case UiText::Off:
@@ -374,6 +384,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Komplexitat";
         case UiText::Punctuation:
           return "Zeichen";
+        case UiText::CapitalizedWords:
+          return "Grossbuchst.";
         case UiText::ResetPacing:
           return "Tempo zuruck";
         case UiText::Night:
@@ -382,6 +394,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Dunkel";
         case UiText::Light:
           return "Hell";
+        case UiText::Blue:
+          return "Blau";
         case UiText::On:
           return "Ein";
         case UiText::Off:
@@ -490,6 +504,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Complexitate";
         case UiText::Punctuation:
           return "Punctuatie";
+        case UiText::CapitalizedWords:
+          return "Majuscule";
         case UiText::ResetPacing:
           return "Reset ritm";
         case UiText::Night:
@@ -498,6 +514,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Inchis";
         case UiText::Light:
           return "Deschis";
+        case UiText::Blue:
+          return "Albastru";
         case UiText::On:
           return "Pornit";
         case UiText::Off:
@@ -606,6 +624,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Zlozonosc";
         case UiText::Punctuation:
           return "Interpunk.";
+        case UiText::CapitalizedWords:
+          return "Wielkie lit.";
         case UiText::ResetPacing:
           return "Reset tempa";
         case UiText::Night:
@@ -614,6 +634,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Ciemny";
         case UiText::Light:
           return "Jasny";
+        case UiText::Blue:
+          return "Niebieski";
         case UiText::On:
           return "Tak";
         case UiText::Off:
@@ -723,6 +745,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Complexity";
         case UiText::Punctuation:
           return "Punctuation";
+        case UiText::CapitalizedWords:
+          return "Capitalized";
         case UiText::ResetPacing:
           return "Reset pacing";
         case UiText::Night:
@@ -731,6 +755,8 @@ inline const char *text(UiLanguage language, UiText key) {
           return "Dark";
         case UiText::Light:
           return "Light";
+        case UiText::Blue:
+          return "Blue";
         case UiText::On:
           return "On";
         case UiText::Off:
