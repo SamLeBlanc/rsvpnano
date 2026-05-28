@@ -64,6 +64,7 @@ class DisplayManager {
   void setDarkMode(bool darkMode);
   void setNightMode(bool nightMode);
   void setBlueMode(bool blueMode);
+  void setScrollFontSizeIndex(uint8_t index);
   void setUiOrientation(BoardConfig::UiOrientation orientation);
   void setUiRotated180(bool rotated180);
   void setTypographyConfig(const TypographyConfig &config);
@@ -198,6 +199,7 @@ class DisplayManager {
   bool darkMode_ = true;
   bool nightMode_ = false;
   bool blueMode_ = false;
+  uint8_t scrollFontSizeIndex_ = 2;  // 0=size1(33%)...4=size5(100%), default 2=size3(50%)
   BoardConfig::UiOrientation uiOrientation_ =
       BoardConfig::UI_ROTATED_180 ? BoardConfig::UiOrientation::LandscapeFlipped
                                   : BoardConfig::UiOrientation::Landscape;

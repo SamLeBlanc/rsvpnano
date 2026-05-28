@@ -168,6 +168,8 @@ constexpr size_t kSettingsDisplayReaderBatteryIndex = 7;
 constexpr size_t kSettingsDisplayReaderChapterIndex = 8;
 constexpr size_t kSettingsDisplayReaderProgressIndex = 9;
 constexpr size_t kSettingsDisplayLanguageIndex = 10;
+constexpr size_t kSettingsDisplayScrollFontIndex = 11;
+constexpr size_t kScrollFontSizeCount = 5;
 constexpr size_t kSettingsPacingReadingModeIndex = 1;
 constexpr size_t kSettingsPacingPauseModeIndex = 2;
 constexpr size_t kSettingsPacingWpmIndex = 3;
@@ -208,6 +210,7 @@ constexpr const char *kPrefReaderBatteryVisible = "read_bat";
 constexpr const char *kPrefReaderChapterVisible = "read_ch";
 constexpr const char *kPrefReaderProgressVisible = "read_pct";
 constexpr const char *kPrefReaderFontSize = "font_size";
+constexpr const char *kPrefScrollFontSize = "scroll_sz";
 constexpr const char *kPrefReaderTypeface = "typeface";
 constexpr const char *kPrefTypographyFocusHighlight = "type_hlt";
 constexpr const char *kPrefLegacyPacingLong = "pace_len";
@@ -638,6 +641,10 @@ void App::begin() {
   readerFontSizeIndex_ = preferences_.getUChar(kPrefReaderFontSize, readerFontSizeIndex_);
   if (readerFontSizeIndex_ >= kReaderFontSizeCount) {
     readerFontSizeIndex_ = 0;
+  }
+  scrollFontSizeIndex_ = preferences_.getUChar(kPrefScrollFontSize, scrollFontSizeIndex_);
+  if (scrollFontSizeIndex_ >= kScrollFontSizeCount) {
+    scrollFontSizeIndex_ = 2;
   }
   switch (preferences_.getUChar(kPrefFooterMetricMode,
                                 static_cast<uint8_t>(footerMetricMode_))) {
@@ -1244,6 +1251,7 @@ void App::applyDisplayPreferences(uint32_t nowMs, bool rerender) {
   display_.setDarkMode(darkMode_);
   display_.setNightMode(nightMode_);
   display_.setBlueMode(blueMode_);
+  display_.setScrollFontSizeIndex(scrollFontSizeIndex_);
   display_.setBrightnessPercent(currentBrightnessPercent());
 
   if (!rerender) {
@@ -1310,6 +1318,10 @@ void App::reloadRuntimePreferences(uint32_t nowMs, bool rerender) {
   readerFontSizeIndex_ = preferences_.getUChar(kPrefReaderFontSize, readerFontSizeIndex_);
   if (readerFontSizeIndex_ >= kReaderFontSizeCount) {
     readerFontSizeIndex_ = 0;
+  }
+  scrollFontSizeIndex_ = preferences_.getUChar(kPrefScrollFontSize, scrollFontSizeIndex_);
+  if (scrollFontSizeIndex_ >= kScrollFontSizeCount) {
+    scrollFontSizeIndex_ = 2;
   }
 
   switch (preferences_.getUChar(kPrefFooterMetricMode,
@@ -2789,6 +2801,14 @@ void App::selectSettingsItem(uint32_t nowMs) {
       case kSettingsDisplayLanguageIndex:
         cycleUiLanguage(nowMs);
         return;
+      case kSettingsDisplayScrollFontIndex:
+        scrollFontSizeIndex_ =
+            static_cast<uint8_t>((scrollFontSizeIndex_ + 1) % kScrollFontSizeCount);
+        preferences_.putUChar(kPrefScrollFontSize, scrollFontSizeIndex_);
+        applyDisplayPreferences(nowMs);
+        rebuildSettingsMenuItems();
+        renderSettings();
+        return;
       default:
         return;
     }
@@ -3408,6 +3428,7 @@ void App::rebuildSettingsMenuItems() {
     settingsMenuItems_.push_back("Reading percent: " +
                                  onOffLabel(readerProgressVisibleWhilePlaying_));
     settingsMenuItems_.push_back(uiText(UiText::Language) + ": " + uiLanguageLabel());
+    settingsMenuItems_.push_back("Scroll font: " + scrollFontSizeLabel());
   } else if (menuScreen_ == MenuScreen::SettingsPacing) {
     settingsMenuItems_.push_back(uiText(UiText::Back));
     settingsMenuItems_.push_back("Reading mode: " + readerModeLabel());
@@ -3777,6 +3798,11 @@ String App::readerFontSizeLabel() const {
     default:
       return uiText(UiText::Small);
   }
+}
+
+String App::scrollFontSizeLabel() const {
+  // Index 0 = size 1 (smallest, 33%), index 4 = size 5 (largest, 100%)
+  return String(static_cast<int>(scrollFontSizeIndex_) + 1);
 }
 
 String App::readerTypefaceLabel() const {

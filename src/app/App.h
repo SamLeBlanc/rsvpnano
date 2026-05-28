@@ -272,6 +272,7 @@ class App {
   String pauseModeLabel() const;
   String handednessLabel() const;
   String readerFontSizeLabel() const;
+  String scrollFontSizeLabel() const;
   String readerTypefaceLabel() const;
   String typographyTuningLabel() const;
   String typographyTuningValueLabel() const;
@@ -455,6 +456,7 @@ class App {
   size_t focusTimerGenreSelectedIndex_ = 0;
   uint8_t brightnessLevelIndex_ = 4;
   uint8_t readerFontSizeIndex_ = 0;
+  uint8_t scrollFontSizeIndex_ = 2;  // 0=size1(33%)...4=size5(100%), default 2=size3(50%)
   uint16_t pacingLongWordDelayMs_ = 200;
   uint16_t pacingComplexWordDelayMs_ = 200;
   uint16_t pacingPunctuationDelayMs_ = 200;

@@ -913,6 +913,14 @@ void DisplayManager::setBlueMode(bool blueMode) {
   lastRenderKey_ = "";
 }
 
+void DisplayManager::setScrollFontSizeIndex(uint8_t index) {
+  if (scrollFontSizeIndex_ == index) {
+    return;
+  }
+  scrollFontSizeIndex_ = index;
+  lastRenderKey_ = "";
+}
+
 void DisplayManager::setUiOrientation(BoardConfig::UiOrientation orientation) {
   if (uiOrientation_ == orientation) {
     return;
@@ -2496,9 +2504,19 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
   const int textTop = kScrollTop;
   const int textBottom = virtualHeight - footerReserve - overlayReserve;
   const ReaderTypeface contextTypeface = currentReaderTypeface();
+  // scrollFontSizeIndex_: 0=smallest ... 4=largest
+  // scalePercents: {33, 42, 50, 75, 100}
+  constexpr uint8_t kScrollScalePercents[5] = {33, 42, 50, 75, 100};
+  const uint8_t scrollScalePercent =
+      kScrollScalePercents[std::min(static_cast<size_t>(scrollFontSizeIndex_), size_t(4))];
   const int contextGlyphHeight = std::max(
-      1, (baseGlyphHeightForTypeface(contextTypeface) + kScrollSerifDivisor - 1) /
-             kScrollSerifDivisor);
+      1, scaledPercentDimension(baseGlyphHeightForTypeface(contextTypeface), scrollScalePercent));
+  // Line gap: fixed 4px at small sizes, shrinks slightly at large sizes so lines sit closer together
+  const int scrollLineGap = std::max(2, 4 - static_cast<int>(scrollFontSizeIndex_) / 2);
+  const int scrollLineHeight = contextGlyphHeight + scrollLineGap;
+  const int scrollParagraphGap = std::min(contextGlyphHeight / 4, 10);
+  // Base space width of 20px scaled to match font size (at 50% scale = 10px, matching previous default)
+  const int scrollSpaceWidth = std::max(4, scaledPercentDimension(20, scrollScalePercent));
   const int maxLineWidth = virtualWidth - (kScrollMarginX * 2);
 
   size_t currentLocalIndex = 0;
@@ -2532,8 +2550,8 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
         break;
       }
 
-      const int wordWidth = measureSerifTextWidth(words[index].text, kScrollSerifDivisor);
-      const int gap = (index == line.start) ? 0 : kScrollSpaceWidth;
+      const int wordWidth = measureSerifTextWidthScaled(words[index].text, scrollScalePercent);
+      const int gap = (index == line.start) ? 0 : scrollSpaceWidth;
       if (index > line.start && lineWidth + gap + wordWidth > maxLineWidth) {
         break;
       }
@@ -2583,11 +2601,11 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
   int y = textTop;
   for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
     if (lineIndex != 0 && lines[lineIndex].paragraphStart) {
-      y += kScrollParagraphGap;
+      y += scrollParagraphGap;
     }
     lineTops.push_back(y);
     contentBottom = y + contextGlyphHeight;
-    y += kScrollLineHeight;
+    y += scrollLineHeight;
   }
 
   const int currentCenterY = lineTops[currentLineIndex] + (contextGlyphHeight / 2);
@@ -2605,7 +2623,8 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
       String(currentWordIndex) + "|" + String(words.size()) + "|" + String(scrollOffset) +
       "|" + chapterLabel + "|" + String(progressPercent) + "|o:" + overlayText + "|f:" +
       footerStatusLabel + "|b:" + batteryLabel_ + "|rc:" + readerChromeKey(chrome) + "|d:" +
-      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0);
+      String(darkMode_ ? 1 : 0) + "|n:" + String(nightMode_ ? 1 : 0) + "|bl:" + String(blueMode_ ? 1 : 0) +
+      "|sf:" + String(scrollFontSizeIndex_);
   if (!initialized_ || renderKey == lastRenderKey_) {
     return;
   }
@@ -2630,9 +2649,9 @@ void DisplayManager::renderScrollView(const std::vector<ContextWord> &words, uin
       const uint16_t color =
           (word.current && currentFocusHighlightEnabled()) ? focusColor() : dimColor();
       const String visibleWord =
-          fitSerifText(word.text, virtualWidth - x - kScrollMarginX, kScrollSerifDivisor);
-      drawSerifTextAt(visibleWord, x, lineY, color, kScrollSerifDivisor);
-      x += measureSerifTextWidth(visibleWord, kScrollSerifDivisor) + kScrollSpaceWidth;
+          fitSerifTextScaled(word.text, virtualWidth - x - kScrollMarginX, scrollScalePercent);
+      drawSerifTextScaledAt(visibleWord, x, lineY, color, scrollScalePercent);
+      x += measureSerifTextWidthScaled(visibleWord, scrollScalePercent) + scrollSpaceWidth;
     }
   }
 
